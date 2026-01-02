@@ -39,16 +39,18 @@ pub fn main() !void {
     };
     defer allocator.free(filename);
 
-    if (try checkInstalled(allocator, io, cli.exe_dir, filename)) {
-        std.log.info("Version '{s}' has been installed", .{version});
-        return;
-    }
+    if (!cli.forced) {
+        if (try checkInstalled(allocator, io, cli.exe_dir, filename)) {
+            std.log.info("Version '{s}' has been installed", .{version});
+            return;
+        }
 
-    if (try checkCache(allocator, io, filename)) |cache_path| {
-        std.log.info("Version '{s}' has been in caches", .{version});
-        std.log.info("Extract cache", .{});
-        _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
-        return;
+        if (try checkCache(allocator, io, filename)) |cache_path| {
+            std.log.info("Version '{s}' has been in caches", .{version});
+            std.log.info("Extract cache", .{});
+            _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+            return;
+        }
     }
 
     std.log.info("Download version '{s}' to caches", .{version});
