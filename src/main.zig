@@ -5,9 +5,6 @@ const stem = std.fs.path.stem;
 
 const Cli = @import("Cli.zig");
 
-const zig_url_prefix = "https://pkg.machengine.org/zig";
-const zls_url_prefix = "https://builds.zigtools.org";
-
 const zig_filename_prefix = "zig-x86_64-linux";
 const zls_filename_prefix = "zls-x86_64-linux";
 const file_extension = ".tar.xz";
@@ -49,15 +46,15 @@ pub fn main() !void {
     if (try checkCache(allocator, io, filename)) |cache_path| {
         std.log.info("Version '{s}' has been in caches", .{cli.version});
         std.log.info("Extract cache", .{});
-        try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+        _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
         return;
     }
 
-    std.log.debug("Download version '{s}' to caches", .{cli.version});
+    std.log.info("Download version '{s}' to caches", .{cli.version});
     const cache_path = try downloadCache(allocator, io, cli.mode, filename);
     defer allocator.free(cache_path);
     std.log.info("Extract cache", .{});
-    try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+    _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
 }
 
 fn checkInstalled(allocator: Allocator, io: Io, exe_dir: []const u8, filename: []const u8) !bool {
@@ -68,7 +65,7 @@ fn checkInstalled(allocator: Allocator, io: Io, exe_dir: []const u8, filename: [
     );
     defer allocator.free(installed_path);
 
-    std.Io.Dir.accessAbsolute(io, installed_path, .{}) catch |err| {
+    std.Io.Dir.cwd().access(io, installed_path, .{}) catch |err| {
         if (err == error.FileNotFound) return false else return err;
     };
     return true;
@@ -94,10 +91,13 @@ fn checkCache(allocator: Allocator, io: Io, filename: []const u8) !?[]u8 {
     return cache_path;
 }
 
+const zig_url_prefix = "https://pkg.machengine.org/zig";
+const zls_url_prefix = "https://builds.zigtools.org";
+
 fn downloadCache(allocator: Allocator, io: Io, mode: Cli.Mode, filename: []const u8) ![]u8 {
     if (cache_dir_path) |_| {} else try setCacheDirPath(allocator);
 
-    try execChildProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path.? });
+    _ = try execChildProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path.? });
 
     const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path.?, filename });
 
@@ -106,7 +106,7 @@ fn downloadCache(allocator: Allocator, io: Io, mode: Cli.Mode, filename: []const
         .zls => try std.fs.path.join(allocator, &.{ zls_url_prefix, filename }),
     };
     defer allocator.free(url);
-    try execChildProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path.? });
+    _ = try execChildProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path.? });
 
     return cache_path;
 }
@@ -115,24 +115,13 @@ fn execChildProcess(
     allocator: Allocator,
     io: std.Io,
     argv: []const []const u8,
-) !void {
+) !std.process.Child.Term {
     var child: std.process.Child = .init(argv, allocator);
 
-    var stdout = try std.ArrayList(u8).initCapacity(allocator, 128);
-    var stderr = try std.ArrayList(u8).initCapacity(allocator, 128);
-    defer stdout.deinit(allocator);
-    defer stderr.deinit(allocator);
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
-    try child.collectOutput(
-        allocator,
-        &stdout,
-        &stderr,
-        std.math.maxInt(usize),
-    );
+    const stdout = std.Io.File.stdout();
+    const stderr = std.Io.File.stderr();
+    child.stdout = stdout;
+    child.stderr = stderr;
 
-    try std.Io.File.stdout().writeStreamingAll(io, stdout.items);
-    try std.Io.File.stderr().writeStreamingAll(io, stderr.items);
-
-    _ = try child.spawnAndWait(io);
+    return try child.spawnAndWait(io);
 }

@@ -4,6 +4,7 @@ const eql = std.mem.eql;
 
 const Self = @This();
 
+/// exe path (first cli arg) is relative to cwd on linux
 exe_dir: []const u8,
 mode: Mode,
 version: []const u8,
@@ -11,6 +12,8 @@ version: []const u8,
 pub const Mode = enum { zig, zls };
 
 pub const help =
+    \\Keep zig & zls always in sync with master
+    \\
     \\Usage: ztup <mode>
     \\
     \\Modes:
