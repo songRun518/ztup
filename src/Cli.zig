@@ -1,24 +1,21 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Writer = std.Io.Writer;
 const eql = std.mem.eql;
 
 const Self = @This();
 
 exe_dir: []const u8,
 mode: Mode,
-filename: []const u8,
+version: []const u8,
 
 pub const Mode = enum { zig, zls };
 
 pub const help =
-    \\Update zig & zls
-    \\
     \\Usage: ztup <mode>
     \\
     \\Modes:
-    \\  zig <filename>   Update zig
-    \\  zls <filename>   Update zls
+    \\  zig <version>   Update zig
+    \\  zls <version>   Update zls
     \\  -h --help       Print help
     \\
 ;
@@ -29,7 +26,7 @@ pub const Error = error{
     UnknownMode,
 };
 
-pub fn parse(allocator: Allocator, writer: *Writer) !Self {
+pub fn parse(allocator: Allocator) !Self {
     var iter = try std.process.argsWithAllocator(allocator);
     defer iter.deinit();
 
@@ -41,8 +38,7 @@ pub fn parse(allocator: Allocator, writer: *Writer) !Self {
     };
     const mode = mode: {
         if (eql(u8, mode_str, "-h") or eql(u8, mode_str, "--help")) {
-            try writer.print("{s}\n", .{help});
-            try writer.flush();
+            std.log.info("{s}", .{help});
             return Error.PrintHelp;
         } else if (eql(u8, mode_str, "zig")) {
             break :mode Mode.zig;
@@ -53,20 +49,20 @@ pub fn parse(allocator: Allocator, writer: *Writer) !Self {
             return Error.UnknownMode;
         }
     };
-    const filename = iter.next() orelse {
-        std.log.err("Missing field 'filename'", .{});
+    const version = iter.next() orelse {
+        std.log.err("Missing field 'version'", .{});
         return Error.FieldMissing;
     };
 
     return .{
         .exe_dir = try allocator.dupe(u8, exe_dir),
         .mode = mode,
-        .filename = try allocator.dupe(u8, filename),
+        .version = try allocator.dupe(u8, version),
     };
 }
 
 pub fn deinit(self: *Self, allocator: Allocator) void {
     allocator.free(self.exe_dir);
-    allocator.free(self.filename);
+    allocator.free(self.version);
     self.* = undefined;
 }
