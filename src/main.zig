@@ -42,17 +42,21 @@ pub fn main() !void {
     defer allocator.free(filename);
 
     if (try checkInstalled(allocator, io, cli.exe_dir, filename)) {
-        std.log.info("Version {s} has been installed", .{cli.version});
+        std.log.info("Version '{s}' has been installed", .{cli.version});
         return;
     }
 
     if (try checkCache(allocator, io, filename)) |cache_path| {
+        std.log.info("Version '{s}' has been in caches", .{cli.version});
+        std.log.info("Extract cache", .{});
         try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
         return;
     }
 
+    std.log.debug("Download version '{s}' to caches", .{cli.version});
     const cache_path = try downloadCache(allocator, io, cli.mode, filename);
     defer allocator.free(cache_path);
+    std.log.info("Extract cache", .{});
     try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
 }
 
@@ -73,7 +77,7 @@ fn checkInstalled(allocator: Allocator, io: Io, exe_dir: []const u8, filename: [
 var cache_dir_path: ?[]u8 = null;
 
 fn setCacheDirPath(allocator: Allocator) !void {
-    const home = try std.process.getEnvVarOwned(allocator, "$HOME");
+    const home = try std.process.getEnvVarOwned(allocator, "HOME");
     defer allocator.free(home);
 
     cache_dir_path = try std.fs.path.join(allocator, &.{ home, ".cache/ztup" });
@@ -126,6 +130,9 @@ fn execChildProcess(
         &stderr,
         std.math.maxInt(usize),
     );
+
+    std.Io.File.stdout().writeStreamingAll(io, stdout.items);
+    std.Io.File.stderr().writeStreamingAll(io, stderr.items);
 
     _ = try child.spawnAndWait(io);
 }

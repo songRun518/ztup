@@ -17,7 +17,6 @@ pub const help =
     \\  zig <version>   Update zig
     \\  zls <version>   Update zls
     \\  -h --help       Print help
-    \\
 ;
 
 pub const Error = error{
