@@ -22,39 +22,83 @@ pub fn main() !void {
         if (err == Cli.Error.PrintHelp) return else return err;
     };
     defer cli.deinit(allocator);
+    const version = try getMasterVersion(allocator, io);
 
     const filename = switch (cli.mode) {
         .zig => try std.fmt.allocPrint(
             allocator,
             "{s}-{s}{s}",
-            .{ zig_filename_prefix, cli.version, file_extension },
+            .{ zig_filename_prefix, version, file_extension },
         ),
 
         .zls => try std.fmt.allocPrint(
             allocator,
             "{s}-{s}{s}",
-            .{ zls_filename_prefix, cli.version, file_extension },
+            .{ zls_filename_prefix, version, file_extension },
         ),
     };
     defer allocator.free(filename);
 
     if (try checkInstalled(allocator, io, cli.exe_dir, filename)) {
-        std.log.info("Version '{s}' has been installed", .{cli.version});
+        std.log.info("Version '{s}' has been installed", .{version});
         return;
     }
 
     if (try checkCache(allocator, io, filename)) |cache_path| {
-        std.log.info("Version '{s}' has been in caches", .{cli.version});
+        std.log.info("Version '{s}' has been in caches", .{version});
         std.log.info("Extract cache", .{});
         _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
         return;
     }
 
-    std.log.info("Download version '{s}' to caches", .{cli.version});
+    std.log.info("Download version '{s}' to caches", .{version});
     const cache_path = try downloadCache(allocator, io, cli.mode, filename);
     defer allocator.free(cache_path);
     std.log.info("Extract cache", .{});
     _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+}
+
+const index_url = "https://ziglang.org/download/index.json";
+const Index = struct { master: struct { version: []const u8 } };
+
+fn getMasterVersion(allocator: Allocator, io: Io) ![]u8 {
+    var client: std.http.Client = .{ .allocator = allocator, .io = io };
+    defer client.deinit();
+
+    var request = try client.request(.GET, try .parse(index_url), .{});
+    defer request.deinit();
+
+    try request.sendBodiless();
+    var redirect_buffer: [1024]u8 = undefined;
+    var resp = try request.receiveHead(&redirect_buffer);
+    var transfer_buffer: [1024]u8 = undefined;
+    var decompress: std.http.Decompress = undefined;
+    const decompress_buffer = try allocator.alloc(u8, 10 * 1024 * 1024);
+    var resp_reader = resp.readerDecompressing(
+        &transfer_buffer,
+        &decompress,
+        decompress_buffer,
+    );
+
+    var content_writer: std.Io.Writer.Allocating = .init(allocator);
+    defer content_writer.deinit();
+    var read_buffer: [1024]u8 = undefined;
+    while (true) {
+        const len = try resp_reader.readSliceShort(&read_buffer);
+        try content_writer.writer.writeAll(read_buffer[0..len]);
+        if (len != read_buffer.len) break;
+    }
+    const content = try content_writer.toOwnedSlice();
+    defer allocator.free(content);
+
+    const parsed: std.json.Parsed(Index) = try std.json.parseFromSlice(
+        Index,
+        allocator,
+        content,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+    return allocator.dupe(u8, parsed.value.master.version);
 }
 
 fn checkInstalled(allocator: Allocator, io: Io, exe_dir: []const u8, filename: []const u8) !bool {

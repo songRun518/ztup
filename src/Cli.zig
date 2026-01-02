@@ -7,7 +7,6 @@ const Self = @This();
 /// exe path (first cli arg) is relative to cwd on linux
 exe_dir: []const u8,
 mode: Mode,
-version: []const u8,
 
 pub const Mode = enum { zig, zls };
 
@@ -17,8 +16,8 @@ pub const help =
     \\Usage: ztup <mode>
     \\
     \\Modes:
-    \\  zig <version>   Update zig
-    \\  zls <version>   Update zls
+    \\  zig             Update zig
+    \\  zls             Update zls
     \\  -h --help       Print help
 ;
 
@@ -51,20 +50,14 @@ pub fn parse(allocator: Allocator) !Self {
             return Error.UnknownMode;
         }
     };
-    const version = iter.next() orelse {
-        std.log.err("Missing field 'version'", .{});
-        return Error.FieldMissing;
-    };
 
     return .{
         .exe_dir = try allocator.dupe(u8, exe_dir),
         .mode = mode,
-        .version = try allocator.dupe(u8, version),
     };
 }
 
 pub fn deinit(self: *Self, allocator: Allocator) void {
     allocator.free(self.exe_dir);
-    allocator.free(self.version);
     self.* = undefined;
 }
