@@ -4,6 +4,7 @@ const Io = std.Io;
 const stem = std.fs.path.stem;
 
 const Cli = @import("Cli.zig");
+const simple = @import("simple.zig");
 
 const zig_filename_prefix = "zig-x86_64-linux";
 const zls_filename_prefix = "zls-x86_64-linux";
@@ -48,7 +49,11 @@ pub fn main() !void {
         if (try checkCache(allocator, io, filename)) |cache_path| {
             std.log.info("Version '{s}' has been in caches", .{version});
             std.log.info("Extract cache", .{});
-            _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+            _ = try simple.execChildProcess(
+                allocator,
+                io,
+                &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir },
+            );
             return;
         }
     }
@@ -57,40 +62,18 @@ pub fn main() !void {
     const cache_path = try downloadCache(allocator, io, cli.mode, filename);
     defer allocator.free(cache_path);
     std.log.info("Extract cache", .{});
-    _ = try execChildProcess(allocator, io, &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir });
+    _ = try simple.execChildProcess(
+        allocator,
+        io,
+        &.{ "tar", "-xf", cache_path, "-C", cli.exe_dir },
+    );
 }
 
 const index_url = "https://ziglang.org/download/index.json";
 const Index = struct { master: struct { version: []const u8 } };
 
 fn getMasterVersion(allocator: Allocator, io: Io) ![]u8 {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
-
-    var request = try client.request(.GET, try .parse(index_url), .{});
-    defer request.deinit();
-
-    try request.sendBodiless();
-    var redirect_buffer: [1024]u8 = undefined;
-    var resp = try request.receiveHead(&redirect_buffer);
-    var transfer_buffer: [1024]u8 = undefined;
-    var decompress: std.http.Decompress = undefined;
-    const decompress_buffer = try allocator.alloc(u8, 10 * 1024 * 1024);
-    var resp_reader = resp.readerDecompressing(
-        &transfer_buffer,
-        &decompress,
-        decompress_buffer,
-    );
-
-    var content_writer: std.Io.Writer.Allocating = .init(allocator);
-    defer content_writer.deinit();
-    var read_buffer: [1024]u8 = undefined;
-    while (true) {
-        const len = try resp_reader.readSliceShort(&read_buffer);
-        try content_writer.writer.writeAll(read_buffer[0..len]);
-        if (len != read_buffer.len) break;
-    }
-    const content = try content_writer.toOwnedSlice();
+    const content = try simple.tinyGet(allocator, io, index_url);
     defer allocator.free(content);
 
     const parsed: std.json.Parsed(Index) = try std.json.parseFromSlice(
@@ -143,7 +126,7 @@ const zls_url_prefix = "https://builds.zigtools.org";
 fn downloadCache(allocator: Allocator, io: Io, mode: Cli.Mode, filename: []const u8) ![]u8 {
     if (cache_dir_path) |_| {} else try setCacheDirPath(allocator);
 
-    _ = try execChildProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path.? });
+    _ = try simple.execChildProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path.? });
 
     const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path.?, filename });
 
@@ -152,22 +135,11 @@ fn downloadCache(allocator: Allocator, io: Io, mode: Cli.Mode, filename: []const
         .zls => try std.fs.path.join(allocator, &.{ zls_url_prefix, filename }),
     };
     defer allocator.free(url);
-    _ = try execChildProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path.? });
+    _ = try simple.execChildProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path.? });
 
     return cache_path;
 }
 
-fn execChildProcess(
-    allocator: Allocator,
-    io: std.Io,
-    argv: []const []const u8,
-) !std.process.Child.Term {
-    var child: std.process.Child = .init(argv, allocator);
+// fn downloadZigCache() !void {}
 
-    const stdout = std.Io.File.stdout();
-    const stderr = std.Io.File.stderr();
-    child.stdout = stdout;
-    child.stderr = stderr;
-
-    return try child.spawnAndWait(io);
-}
+// fn communityMirrors(allocator: Allocator, io: Io) !void {}
