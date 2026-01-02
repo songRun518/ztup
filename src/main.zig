@@ -131,8 +131,8 @@ fn execChildProcess(
         std.math.maxInt(usize),
     );
 
-    std.Io.File.stdout().writeStreamingAll(io, stdout.items);
-    std.Io.File.stderr().writeStreamingAll(io, stderr.items);
+    try std.Io.File.stdout().writeStreamingAll(io, stdout.items);
+    try std.Io.File.stderr().writeStreamingAll(io, stderr.items);
 
     _ = try child.spawnAndWait(io);
 }
