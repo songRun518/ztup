@@ -7,7 +7,7 @@ const Self = @This();
 
 exe_dir: []const u8,
 mode: Mode,
-version: []const u8,
+filename: []const u8,
 
 pub const Mode = enum { zig, zls };
 
@@ -17,8 +17,8 @@ pub const help =
     \\Usage: ztup <mode>
     \\
     \\Modes:
-    \\  zig <version>   Update zig
-    \\  zls <version>   Update zls
+    \\  zig <filename>   Update zig
+    \\  zls <filename>   Update zls
     \\  -h --help       Print help
     \\
 ;
@@ -53,20 +53,20 @@ pub fn parse(allocator: Allocator, writer: *Writer) !Self {
             return Error.UnknownMode;
         }
     };
-    const version = iter.next() orelse {
-        std.log.err("Missing field 'version'", .{});
+    const filename = iter.next() orelse {
+        std.log.err("Missing field 'filename'", .{});
         return Error.FieldMissing;
     };
 
     return .{
         .exe_dir = try allocator.dupe(u8, exe_dir),
         .mode = mode,
-        .version = try allocator.dupe(u8, version),
+        .filename = try allocator.dupe(u8, filename),
     };
 }
 
 pub fn deinit(self: *Self, allocator: Allocator) void {
     allocator.free(self.exe_dir);
-    allocator.free(self.version);
+    allocator.free(self.filename);
     self.* = undefined;
 }
