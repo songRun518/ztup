@@ -110,13 +110,3 @@ Utility functions populate `simple.zig`, providing HTTP request capabilities, fi
 Version index management happens in `index.zig`, which fetches and parses the official Zig version index. This module caches the index locally, checks for updates, and extracts version strings for both display and archive naming. The caching strategy here mirrors that used for binary downloads, reducing network overhead for frequently-run checks.
 
 The mirror selection system lives in `mirrors.zig`, handling community mirror list retrieval and random selection. This module fetches the mirror list from Ziglang's infrastructure, caches it locally, parses the line-separated mirror URLs, and randomly selects one for use. The local caching ensures the selection process remains fast even without network connectivity.
-
-## Contributing
-
-Contributions welcome! Areas for improvement include additional platform support, particularly Windows where path handling and process execution differ from Unix conventions. Enhanced mirror selection algorithms, geographic-aware selection for example, would provide value to users in different regions. Package manager integration for popular systems would streamline installation for new users.
-
-Bug reports and feature suggestions should be submitted through the project's issue tracker with clear reproduction steps for bugs and rationale for new features. Pull requests should follow Zig's style conventions and include tests where applicable.
-
-## License
-
-ztup is distributed under the MIT License, permitting free use, modification, and distribution including commercial applications. The full license text accompanies the source code in the repository.
