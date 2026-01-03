@@ -98,25 +98,24 @@ pub fn checkInstalled(allocator: Allocator, io: Io, exe_dir: []const u8, filenam
     return true;
 }
 
-pub fn checkCache(allocator: Allocator, io: Io, filename: []const u8) !?[]u8 {
-    if (cache_dir_path) |_| {} else try setCacheDirPath(allocator);
+pub fn cacheDirPath(allocator: Allocator) ![]u8 {
+    const home = try std.process.getEnvVarOwned(allocator, "HOME");
+    defer allocator.free(home);
 
-    const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path.?, filename });
+    return try std.fs.path.join(allocator, &.{ home, ".cache/ztup" });
+}
+
+pub fn checkCache(allocator: Allocator, io: Io, filename: []const u8) !?[]u8 {
+    const cache_dir_path = try cacheDirPath(allocator);
+    defer allocator.free(cache_dir_path);
+
+    const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path, filename });
     defer allocator.free(cache_path);
 
     std.Io.Dir.accessAbsolute(io, cache_path, .{}) catch |err| {
         if (err == error.FileNotFound) return null else return err;
     };
     return cache_path;
-}
-
-pub var cache_dir_path: ?[]u8 = null;
-
-pub fn setCacheDirPath(allocator: Allocator) !void {
-    const home = try std.process.getEnvVarOwned(allocator, "HOME");
-    defer allocator.free(home);
-
-    cache_dir_path = try std.fs.path.join(allocator, &.{ home, ".cache/ztup" });
 }
 
 pub const zls_url_prefix = "https://builds.zigtools.org";
@@ -132,11 +131,12 @@ pub fn downloadCache(
     filename: []const u8,
     exe_dir: []const u8,
 ) ![]u8 {
-    if (cache_dir_path) |_| {} else try setCacheDirPath(allocator);
+    const cache_dir_path = try cacheDirPath(allocator);
+    defer allocator.free(cache_dir_path);
 
-    _ = try simple.execProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path.? });
+    _ = try simple.execProcess(allocator, io, &.{ "mkdir", "-p", cache_dir_path });
 
-    const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path.?, filename });
+    const cache_path = try std.fs.path.join(allocator, &.{ cache_dir_path, filename });
     defer allocator.free(cache_path);
 
     const url = switch (mode) {
@@ -150,7 +150,7 @@ pub fn downloadCache(
     defer allocator.free(url);
 
     std.log.info("Download from {s}", .{url});
-    const term = try simple.execProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path.? });
+    const term = try simple.execProcess(allocator, io, &.{ "wget", url, "-P", cache_dir_path });
     // This is the list of exit codes for wget:
     //
     // 0       No problems occurred
