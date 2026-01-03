@@ -5,6 +5,7 @@ const eql = std.mem.eql;
 const Self = @This();
 
 /// exe path (first cli arg) is relative to cwd on linux
+/// therefore exe_dir is relative to cwd
 exe_dir: []const u8,
 mode: Mode,
 forced: bool,

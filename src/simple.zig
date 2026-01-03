@@ -2,6 +2,18 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+pub fn readAll(allocator: Allocator, io: Io, file: std.Io.File) ![]u8 {
+    var reader = file.reader(io, &.{});
+    var content_writer: std.Io.Writer.Allocating = .init(allocator);
+    var buffer: [1024]u8 = undefined;
+    while (true) {
+        const len = try reader.interface.readSliceShort(&buffer);
+        try content_writer.writer.writeAll(buffer[0..len]);
+        if (len != buffer.len) break;
+    }
+    return try content_writer.toOwnedSlice();
+}
+
 pub fn tinyGet(allocator: Allocator, io: Io, url: []const u8) ![]u8 {
     var client: std.http.Client = .{ .allocator = allocator, .io = io };
     defer client.deinit();
@@ -32,7 +44,7 @@ pub fn tinyGet(allocator: Allocator, io: Io, url: []const u8) ![]u8 {
     return try content_writer.toOwnedSlice();
 }
 
-pub fn execChildProcess(
+pub fn execProcess(
     allocator: Allocator,
     io: std.Io,
     argv: []const []const u8,
