@@ -57,7 +57,7 @@ pub fn main() !void {
         }
 
         if (try checkCache(allocator, io, filename)) |cache_path| {
-            std.log.info("Version '{s}' has been in caches", .{version});
+            std.log.info("Version '{s}' has been in cache", .{version});
             std.log.info("Extract cache", .{});
             _ = try simple.execProcess(
                 allocator,
@@ -68,7 +68,7 @@ pub fn main() !void {
         }
     }
 
-    std.log.info("Download version '{s}' to caches", .{version});
+    std.log.info("Download version '{s}' to cache", .{version});
     const cache_path = try downloadCache(
         allocator,
         io,
@@ -142,9 +142,9 @@ pub fn downloadCache(
 
     const url = switch (mode) {
         .zig => zig: {
-            const zig_url_prifix = try mirrors.communityMirror(allocator, io, exe_dir);
-            defer allocator.free(zig_url_prifix);
-            break :zig try std.fs.path.join(allocator, &.{ zig_url_prifix, filename });
+            const zig_url_prefix = try mirrors.communityMirror(allocator, io, exe_dir);
+            defer allocator.free(zig_url_prefix);
+            break :zig try std.fs.path.join(allocator, &.{ zig_url_prefix, filename });
         },
         .zls => try std.fs.path.join(allocator, &.{ zls_url_prefix, filename }),
     };
