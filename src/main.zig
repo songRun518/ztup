@@ -13,6 +13,7 @@ pub const zig_filename_prefix = "zig-x86_64-linux";
 pub const zls_filename_prefix = "zls-x86_64-linux";
 pub const file_extension = ".tar.xz";
 
+/// Only support x86_64-linux
 pub fn main() !void {
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     defer std.debug.assert(debug_allocator.deinit() == .ok);

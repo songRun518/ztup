@@ -17,7 +17,7 @@ Building ztup requires Zig 0.14.0 or later, which can be obtained from the offic
 ```bash
 git clone https://github.com/yourusername/ztup.git
 cd ztup
-zig build -Doptimize=ReleaseFast
+zig build -Doptimize=ReleaseSafe
 ```
 
 ## Usage
